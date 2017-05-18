@@ -3,7 +3,7 @@ var router = express.Router();
 var pool = require('../dbconnection.js');
 
 /* GET home page. */
-router.get('/', function(req, res, next) {
+router.post('/', function(req, res, next) {
   pool.getConnection(function(err,connection){
   if (err) {
     res.json({"code" : 100, "status" : "Error in connection database"});
@@ -12,8 +12,10 @@ router.get('/', function(req, res, next) {
   console.log('connected as id ' + connection.threadId);
   connection.query("select name from users",function(err,rows){
       connection.release();
-      if(!err) {
-          res.json(rows);
+      if(!err && rows) {
+          res.json(req.body);
+      } else {
+        res.json(err);
       }           
   });
 });
