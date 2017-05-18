@@ -10,7 +10,7 @@ router.get('/', function(req, res, next) {
     return;
   } 
   console.log('connected as id ' + connection.threadId);
-  connection.query("select * from users",function(err,rows){
+  connection.query("select name from users",function(err,rows){
       connection.release();
       if(!err) {
           res.json(rows);
