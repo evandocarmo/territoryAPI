@@ -19,7 +19,8 @@ node_modules/
 .env
 
 #db files
-.dbconnect
-.config.js
-.dbconnection.js
-.addresses.csv
+dbconnect
+config.js
+dbconnection.js
+addresses.csv
+helpers.js
