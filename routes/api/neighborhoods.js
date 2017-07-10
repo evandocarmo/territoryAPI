@@ -9,6 +9,7 @@ router.get('/macroarea',function(req,res){
             if(err)
                 return res.json(err);
             connection.query("SELECT distinct area_name, macroarea from cod_cards where macroarea = ? ",[req.query.macroarea],function(err,rows){
+                connection.release();
                 if(err)
                     return res.json(err);
                 return res.json(rows);
@@ -17,12 +18,15 @@ router.get('/macroarea',function(req,res){
 });
 
 router.get('/',function(req,res){
+        console.time('getting neighborhoods');
         pool.getConnection(function(err,connection){
             if(err)
                 return res.json(err);
             connection.query("SELECT distinct area_name,macroarea from cod_cards",function(err,rows){
+                connection.release();
                 if(err)
                     return res.json(err);
+                console.timeEnd('getting neighborhoods');
                 return res.json(rows);
             });
         });

@@ -7,6 +7,7 @@ router.get('/',function(req,res){
         if(err)
             return res.json(err);
         connection.query("SELECT distinct macroarea from cod_cards",function(err,rows){
+            connection.release();
             if(err)
                 return res.json(err);
             var result = [];

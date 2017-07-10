@@ -1,13 +1,18 @@
 var express = require('express');
 var router = express.Router();
 var pool = require('../../dbconnection.js');
+var json2xls = require('json2xls');
+var fs = require('fs');
 
 router.get('/', function(req, res) { //LIST COD_CARDS
-    var query = "SELECT *,LAST_UPDATE,DATE_FORMAT(LAST_UPDATE,'%d %b %y') as LAST_UPDATE FROM cod_cards";
+    var query = "SELECT *,DATE_FORMAT(LAST_UPDATE,'%d %b %y') as LAST_UPDATE,DATE_FORMAT(TAKEN,'%d %b %y') as TAKEN FROM cod_cards";
     var counter = 0;
     for (var property in req.query) {
-        console.log(property);
         if (req.query.hasOwnProperty(property)) {
+            if(property === "excel"){
+                console.log('excel');
+                continue;
+            }
             if (counter === 0)
                 query += " WHERE ";
             else
@@ -24,8 +29,10 @@ router.get('/', function(req, res) { //LIST COD_CARDS
                 query += "area_name = '" + req.query.area_name + "'";
             else if(property === "last")
                 query += "TAKEN BETWEEN NOW() - INTERVAL " + req.query.last + " DAY AND NOW()";
-            else if(property === "more_than"){
+            else if(property === "more_than")
                 query += "TAKEN < NOW() - INTERVAL " + req.query.more_than + " DAY";
+            else if(property === "cod"){
+                query += "cod === " + req.query.cod;
         } else {
             return res.json({
                 "success":false,
@@ -35,16 +42,23 @@ router.get('/', function(req, res) { //LIST COD_CARDS
         counter++;
         }
     }
-    console.log(query);
     pool.getConnection(function(err,connection){
         if(err)
             return res.json(err);
         else {
+            console.log(query);
             connection.query(query,function(err,rows){
+                connection.release();
                 if(err)
                     return res.json(err);
-                else
-                    return res.json(rows);
+                else if(req.query.excel){
+                    console.log(rows);
+                    var xls = json2xls(rows);
+                    fs.writeFileSync('routes/api/territory.xlsx', xls, 'binary');
+                    res.download('routes/api/territory.xlsx');
+                    return;
+                }
+                return res.json(rows);
             });
         }
     });
@@ -73,6 +87,7 @@ router.put('/checkout', function(req, res) {
                         return res.json(err);
                     else
                         connection.query("UPDATE users set holding = holding + ? where id = ?",[req.body.cod.length,req.body.user],function(err,userRows){
+                            connection.release();
                             if(err)
                                 return res.json(err);
                             return res.json([rows,userRows]);
@@ -99,6 +114,7 @@ router.put('/return', function(req, res) {
                             return res.json(err);
                         else
                             connection.query("UPDATE users set holding = holding - 1 where id = ?",[req.body.user],function(err,userRows){
+                                connection.release();
                                 if(err)
                                     return res.json(err);
                                 return res.json([rows,userRows]);
@@ -122,6 +138,7 @@ router.post('/', function(req, res) {
                 VALUES(?,?,?,?,?,1,0)",
                 [req.body.area + req.body.area_number,req.body.area,req.body.area_name,req.body.area_number,req.body.macroarea],
                 function(err,rows){
+                        connection.release();
                         if(err)
                             return res.json(err);
                         else
@@ -129,17 +146,21 @@ router.post('/', function(req, res) {
                     });
             }
         });    
+    } else {
+        console.log(req.body);
+        return res.json('wrong parameters');
     }
 });
 
 router.delete('/', function(req, res) {
-    if (req.body.cod) {
+    if (req.query.cod) {
         //DELETE COD_CARD
         pool.getConnection(function(err,connection){
             if(err)
                 return res.json(err);
             else {
-                connection.query("DELETE FROM cod_cards where cod = ?",req.body.cod,function(err,rows){
+                connection.query("DELETE FROM cod_cards where cod = ?",req.query.cod,function(err,rows){
+                    connection.release();
                     if(err)
                         return res.json(err);
                     return res.json(rows);

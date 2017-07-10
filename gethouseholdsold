@@ -1,0 +1,152 @@
+console.log(req.query);
+	if(req.query.cod_card_cod){
+		if(req.query.cod_card_cod && req.query.cod_card_cod.constructor !== Array){
+			console.log("not array");
+			pool.getConnection(function(err,connection){
+				if(err)
+					return res.json(err);
+				connection.query("select * from territory inner join cod_cards on cod_cards.cod_card = territory.cod_card where cod_cards.cod = ?",
+					req.query.cod_card_cod,function(err,rows){
+					console.log(rows);
+					if(err){
+						connection.release();
+						return res.json(err);
+					}
+					connection.release();
+					return res.json(rows);
+				});
+			});
+			return;
+		}
+		if(req.query.cod_card_cod.constructor === Array){ //GET HOUSEHOLDS BY COD_CARD COD
+			console.log(req.query.cod_card_cod);
+			pool.getConnection(function(err,connection){
+				if(err)
+					return res.json(err);
+				var query = "select * from territory inner join cod_cards on cod_cards.cod_card = territory.cod_card where ";
+				for(var index in req.query.cod_card_cod){
+		            var cod_card = req.query.cod_card_cod[index];
+		            if(cod_card && index != 0)
+		                query += " OR ";
+		            if(cod_card)
+		                query += "cod_cards.cod = '" + cod_card + "'";
+	        	}
+	        	console.log(query);
+				connection.query(query,function(err,rows){
+					if(err){
+						connection.release();
+						return res.json(err);
+					}
+					connection.release();
+					return res.json(rows);
+				});
+			});
+			return;
+		}
+	}
+	else if(req.query.user){//GET HOUSEHOLDS HELD BY THAT USER
+	pool.getConnection(function(err,connection){
+	    if(err)
+	        return res.json(err);
+	    else {
+	        connection.query("select * from territory where id = ?",req.query.user,function(err,rows){
+	            if(err){
+	            	connection.release();
+	                return res.json(err);
+	            }
+	            else{
+	            	connection.release();
+	                return res.json(rows);
+	            }
+	        });
+	    }
+	  });
+	  return;
+	}
+	else if(req.query.cod){
+		pool.getConnection(function(err,connection){
+			if(err)
+				return res.json(err);
+			var query = "select * from territory where ";
+			for(var index in req.query.cod){
+		            var cod = req.query.cod[index];
+		            if(cod && index != 0)
+		                query += " OR ";
+		            if(cod)
+		                query += "cod = '" + cod + "'";
+	        }
+	        console.log(query);
+	        connection.query(query,function(err,rows){
+	        	if(err){
+	        		connection.release();
+	        		return res.json(err);
+	        	}
+	        	connection.release();
+	        	return res.json(rows);
+	        });
+		});
+		return;
+	}
+	pool.getConnection(function(err, connection) { //GET A CONNECTION FROM POOL
+		if (err) {
+			res.json({
+				"code": 100,
+				"status": "Database connection error"
+			});
+			return;
+		} else { //CONNECTION TO DATABASE WAS SUCCESSFUL
+			var query;
+			if (req.query.available === "yes")
+				query = "SELECT * FROM territory where available = 1";
+			else if (req.query.available === "no")
+				query = "SELECT * FROM territory where available = 0";
+			// TODO: MOVE THIS TO INDEPENDENT ROUTE 'households/visit'
+			else if (req.query.quantity) { //IF QUANTTY IS SET, USER HAS ALSO TO SELECT AN AREA
+				var quantity = parseInt(req.query.quantity);
+				var area_name = req.query.area_name;
+				console.log(req.query);
+				connection.query("select * from territory where available = 1 and area_name = ? and language != 'spanish' and language != 'french' and language != 'chinese' ORDER BY last_update LIMIT ?", [area_name,quantity], function(err, rows) {
+					if (err) {
+						connection.release();
+						return res.json(err);
+					} else {
+						if (rows) {
+							connection.release();
+							console.log(rows);
+							res.json(rows);
+						} else {
+							connection.release();
+							res.json({
+								"success": false,
+								"message": "No matches"
+							});
+						}
+					}
+
+				});
+				return;
+			} else
+				query = "SELECT * FROM territory";
+			console.log(query);
+			connection.query(query, function(err, rows) { //GET ALL ADDRESSES
+				connection.release();
+				if (err){
+					connection.release();
+					return res.json({
+						success: false,
+						message: err
+					});
+				}
+				else if (rows) {
+					return res.send(rows);
+				} else {
+					connection.release();
+					return res.json({
+						success: false,
+						message: "Something went wrong."
+					});
+				}
+			});
+			connection.release(); //RELEASE CONNECTION
+		}
+	});

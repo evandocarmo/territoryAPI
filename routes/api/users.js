@@ -11,6 +11,7 @@ router.get('/', function(req, res, next) {
             return res.json(err);
         else {
             connection.query("select id,name,privilege, max, holding from users WHERE holding <= max",function(err,rows){
+                connection.release();
                 if(err)
                     return res.json(err);
                 else
@@ -25,6 +26,7 @@ router.get('/', function(req, res, next) {
             return res.json(err);
         else {
             connection.query("select id,name,privilege,max,holding from users where holding >= max",function(err,rows){
+                connection.release();
                 if(err)
                     return res.json(err);
                 else
@@ -40,6 +42,7 @@ router.get('/', function(req, res, next) {
             return res.json(err);
         else {
             connection.query("select id,name,privilege, max_visiting, visiting from users WHERE visiting <= max_visiting",function(err,rows){
+                connection.release();
                 if(err)
                     return res.json(err);
                 else
@@ -54,6 +57,7 @@ router.get('/', function(req, res, next) {
             return res.json(err);
         else {
             connection.query("select id,name,privilege,max_visiting,visiting from users where visiting >= max_visiting",function(err,rows){
+                connection.release();
                 if(err)
                     return res.json(err);
                 else
@@ -62,12 +66,28 @@ router.get('/', function(req, res, next) {
         }
       });
     return;
+  }else if(req.query.info){
+      if(req.query.info === "me"){
+        req.query.info = req.decoded.id;
+      }
+      pool.getConnection(function(err,connection){
+          if(err)
+            return res.json(err);
+          connection.query("select id,name,privilege,max,holding,max_visiting,visiting from users where id = ?",[req.query.info],function(err,rows){
+            connection.release();
+              if(err)
+                return res.json(err);
+              return res.json(rows);
+          });
+      });
+      return;
   }
   pool.getConnection(function(err,connection){
     if(err)
         return res.json(err);
     else {
         connection.query("select id,name,privilege,max,holding,max_visiting,visiting from users",function(err,rows){ //GET ALL USERS
+            connection.release();
             if(err)
                 return res.json(err);
             else
@@ -90,12 +110,13 @@ router.post("/",function(req,res){
                     return res.json(err);
                 for(var i = 0; i < rows.length; i++){ //CHECK IF NAME IS ALREADY TAKEN
                     if(rows[i].name === req.body.name){
-                        return res.json("Sorry. This name is already taken");
+                        return res.json({success:false,message:"Sorry. This name is already taken"});
                     }
                 }
                 console.log(max_visiting);
                 connection.query("INSERT INTO users (ID,NAME,PRIVILEGE,HASH,REGISTERED_BY,MAX,HOLDING,MAX_VISITING,VISITING) \
                 values (NULL,?,?,?,?,?,0,?,0)",[req.body.name,req.body.privilege,hash,req.decoded.id,max,max_visiting],function(err,userRows){
+                    connection.release();
                     if(err)
                         return res.json(err);
                     return res.json(userRows);
@@ -108,7 +129,8 @@ router.post("/",function(req,res){
 });
 
 router.delete("/",function(req,res){
-   if(!req.body.user)
+    console.log(req.body);
+   if(!req.query.user)
     return res.json("Please select a publisher to be deleted");
     //BEFORE DELETING PUBLISHER, TRANSFER ALL HIS CURRENT CARDS AND HOUSEHOLDS BACK TO POOL
     pool.getConnection(function(err,connection){
@@ -117,10 +139,11 @@ router.delete("/",function(req,res){
         connection.query("UPDATE cod_cards set available = 1, id = 0, last_update = NOW(), last_id = 0 where id = ?",[req.body.user],function(err,cardRows){
                                   if(err)
                                     return res.json(err);
-                                  connection.query("UPDATE territory set available = 1, id = 0, last_update = NOW(), last_id = 0 where id = ? ",[req.body.user],function(err,territoryRows){
+                                  connection.query("UPDATE territory set available = 1, id = 0, last_update = NOW(), last_id = 0 where id = ? ",[req.query.user],function(err,territoryRows){
                                       if(err)
                                         return res.json(err);
-                                      connection.query("DELETE FROM users WHERE id = ?",[req.body.user],function(err,deleteRows){
+                                      connection.query("DELETE FROM users WHERE id = ?",[req.query.user],function(err,deleteRows){
+                                        connection.release();
                                         if(err)
                                             return res.json(err);
                                         return res.json([cardRows,territoryRows,deleteRows]);
@@ -129,8 +152,8 @@ router.delete("/",function(req,res){
                               });
     });
 });
-
 router.put('/password',function(req,res){//CHANGE PASSWORD
+    console.log(req);
     if(!req.body.user && req.body.password)
         return res.json("Please provide a user and a new password");
     var hash = crypt(req.body.password,hash);
@@ -139,11 +162,29 @@ router.put('/password',function(req,res){//CHANGE PASSWORD
         if(err)
             return res.json(err);
         connection.query("UPDATE users SET hash = ? where id = ?",[hash,req.body.user],function(err,rows){
+            connection.release();
             if(err)
                 return res.json(err);
             return res.json(rows);
         });
     });
+});
+
+router.put('/',function(req,res){
+    console.log(req.body);
+    if(req.body.id){
+        pool.getConnection(function(err,connection){
+            if(err)
+                return res.json(err);
+            connection.query("UPDATE users set name = ?,privilege = ?,max = ?,holding = ?, max_visiting = ?, visiting = ? where id = ?",
+            [req.body.name,req.body.privilege,req.body.max,req.body.holding,req.body.max_visiting,req.body.visiting,req.body.id],function(err,rows){
+                connection.release();
+                if(err)
+                    return res.json(err);
+                return res.json(rows);
+            });
+        });
+    }
 });
 
 module.exports = router;

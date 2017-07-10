@@ -7,7 +7,7 @@ var config = require('../config');
 var User = require('../models/User.js');
 
 router.post('/', function(req, res, next) {
-    console.log(req);
+    console.log(req.body);
   	if (!req.body.username || !req.body.password) {
   		res.send({success:false,message:"Please, insert correct name and password"});
   		return;
@@ -33,8 +33,7 @@ router.post('/', function(req, res, next) {
               expiresInMinutes: 1440
               });
               res.json({
-                success: true,
-                message: user.name + ' is logged in!',
+                user:user,
                 token: token
               });
   				  } else {
