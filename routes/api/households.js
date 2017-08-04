@@ -163,6 +163,7 @@ router.get('/', function(req, res, next) {
 });
 
 router.post("/", function(req, res) { //INSERT NEW HOUSEHOLD INTO TERRITORY
+	req.body = req.body.household;
 	pool.getConnection(function(err, connection) {
 		if (err)
 			return res.json({
